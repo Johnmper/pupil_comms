@@ -1,0 +1,6 @@
+<launch>
+
+    <node pkg="tf" type="static_transform_publisher" name="jaco_r200_broadcaster" args="0 0 0 0 0 0 1 jaco r200_camera_link 15"/>
+    <node pkg="rviz" type="rviz" name="r200_pupil_rviz" output="screen" respawn="false"
+        args="-d $(find pupil_comms)/rviz/r200_pupil.rviz"/>
+</launch>

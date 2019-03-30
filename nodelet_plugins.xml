@@ -1,0 +1,12 @@
+<library path="lib/libpupil_comms">
+    <class name="pupil_comms/R200Nodelet" type="pupil_comms::R200Nodelet" base_class_type="nodelet::Nodelet">
+        <description>
+            Connects to the realsense camera directly and creates the necessary topics
+        </description>
+    </class>
+    <class name="pupil_comms/PupilNodelet" type="pupil_comms::PupilNodelet" base_class_type="nodelet::Nodelet">
+        <description>
+            Connects to the pupil software and creates the necessary topics
+        </description>
+    </class>
+</library>

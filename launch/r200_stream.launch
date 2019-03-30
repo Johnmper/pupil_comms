@@ -1,0 +1,20 @@
+<launch>
+
+    # 40ms static publisher, introduces jaco into the origin coordinates of the world
+    <node pkg="tf" type="static_transform_publisher" name="world_broadcaster" args="0 0 0 0 0 0 1 world jaco 40" />
+
+    <node pkg="nodelet" type="nodelet" name="standalone_nodelet"  args="manager" output="screen"/>
+
+    # Direct communication with the R200 camera (optimal solution as the delay in tunneling the information between
+    # the pupil software and ROS is removed)
+    # In this case the camera information is directly obtained from the camera instead of using a separate node
+    <node pkg="nodelet" type="nodelet" name="R200Nodelet" args="load realsense_util/R200Nodelet standalone_nodelet" output="screen"/>
+
+    # Calculates the transform between the Jaco and Camera using P2P algorithms
+    <node pkg="nodelet" type="nodelet" name="P2PNodelet" args="load realsense_util/P2PNodelet standalone_nodelet" output="screen"/>
+
+    # Optional: Colorizes the depth stream into a Heat amp acoording to the distance
+    # Limited from 80cm to 3.5m (hardcoded)
+    <node pkg="nodelet" type="nodelet" name="ColoredDepth" args="load realsense_util/ColoredDepth standalone_nodelet" output="screen"/>
+
+</launch>

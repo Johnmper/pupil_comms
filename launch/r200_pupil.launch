@@ -1,0 +1,73 @@
+<launch>
+    <arg name="detect_blink" default="false"/>
+    <arg name="gaze_node" default="false"/>
+    <arg name="use_horn" default="false"/>
+    <arg name="use_p2p"  default="false"/>
+    <arg name="use_sm"  default="false"/>
+    <arg name="use_colored" default="true"/>
+    <arg name="gen_pointcloud" default="true"/>
+
+    <arg name="jaco_tf"  default="true"/>
+    <arg name="manager"  default="standalone_nodelet"/>
+    <arg name="respawn"  default="false" />
+    <arg     if="$(arg respawn)" name="bond" value="" />
+    <arg unless="$(arg respawn)" name="bond" value="--no-bond" />
+
+    <node if="$(arg jaco_tf)" pkg="tf" type="static_transform_publisher" name="world_broadcaster2223" args="0 0 0.75 0 0 0 1 world jaco 120" />
+
+    <node pkg="nodelet" type="nodelet" name="$(arg manager)"  args="manager" output="screen"/>
+
+    # Creates tunnel between Pupil application and ROS
+    # Also publishes several camera links using data extracted from the camera using the [save_camera] node
+    # Currently saves data into [/home/johnmper/ROSData/realsense_util/r200_info.json] (hardcoded)
+    <node pkg="nodelet" type="nodelet" name="PupilNodelet" args="load pupil_comms/PupilNodelet $(arg manager)" output="screen"/>
+
+    # Optional: Colorizes the depth stream into a Heat amp acoording to the distance
+    # Limited from 80cm to 3.5m (hardcoded)
+    <node if="$(arg use_colored)" pkg="nodelet" type="nodelet" name="ColoredDepth" args="load pupil_utils/ColoredDepth $(arg manager) $(arg bond)" output="screen"/>
+
+    # Blink Detector
+    <node if="$(arg detect_blink)" pkg="nodelet" type="nodelet" name="BlinkDetector" args="load pupil_utils/BlinkDetector $(arg manager) $(arg bond)" output="screen">
+        <rosparam file="$(find pupil_utils)/config/blink_detector.yaml" command="load" />
+    </node>
+
+
+    <group if="$(arg gen_pointcloud)">
+        # Use modified register so we can optimize for the R200 camera
+        <node pkg="nodelet" type="nodelet" name="modified_register_pupil_depth"
+                 args="load depth_image_proc/register $(arg manager) $(arg bond)"
+                 respawn="$(arg respawn)" output="screen">
+            <remap from="depth/image_rect"            to="/pupil/depth/image_raw"/>
+            <remap from="rgb/camera_info"             to="/pupil/world/camera_info" />
+            <remap from="depth/camera_info"           to="/pupil/depth/camera_info" />
+            <remap from="depth_registered/image_rect" to="/pupil/depth_registered/image_raw"/>
+        </node>
+
+        <node pkg="nodelet" type="nodelet" name="points_pupil_xyzrgb"
+                 args="load depth_image_proc/point_cloud_xyzrgb $(arg manager) $(arg bond) exact_sync"
+                 respawn="$(arg respawn)" output="screen">
+            <remap from="rgb/image_rect_color"        to="/pupil/world/image_raw" />
+            <remap from="rgb/camera_info"             to="/pupil/world/camera_info" />
+            <remap from="depth_registered/image_rect" to="/pupil/depth_registered/image_raw" />
+            <remap from="depth_registered/points"     to="/pupil/points"/>
+        </node>
+    </group>
+
+    # GazeNodelet
+    <node if="$(arg gaze_node)" pkg="nodelet" type="nodelet" name="GazeNodelet" args="load pupil_utils/GazeNodelet $(arg manager) $(arg bond)" output="screen"/>
+
+    # Choose between the HORN and P2P algorithms for the camera pose estimation
+    # HORN - Alternative to P2PNodelet, extracts depth pointcloud and calculate the camera pose using the Horn transformation estimation algorithm
+    <node if="$(arg use_horn)" pkg="nodelet" type="nodelet" name="HornTransform"
+            args="load pupil_utils/HornTransform $(arg manager) $(arg bond)" output="screen"/>
+
+    # P2P - Calculates the transform between the Jaco and Camera using P2P algorithms (Uses the OpenCV P2P solver, depth image data discarded)
+    <node if="$(arg use_p2p)" pkg="nodelet" type="nodelet" name="P2PNodelet"
+            args="load pupil_utils/P2PNodelet  $(arg manager) $(arg bond)" output="screen"/>
+
+    # SM - Calculates the transform between the Jaco and Camera using SingleMarker estimation algorithm (Uses the OpenCV AruCo Library, depth image data discarded)
+    <node if="$(arg use_sm)" pkg="nodelet" type="nodelet" name="SingleMarkerNodelet"
+            args="load pupil_utils/SingleMarker  $(arg manager) $(arg bond)" output="screen"/>
+
+
+</launch>
